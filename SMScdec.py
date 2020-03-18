@@ -10,7 +10,7 @@ window = tk.Tk()
 # 第2步，给窗口的可视化起名字 
 window.title('SMS Deocder') 
 # 第3步，设定窗口的大小(长 * 宽) 
-window.geometry('500x300') # 这里的乘是小x 
+window.geometry('500x600') # 这里的乘是小x 
 
 # SMS input label
 SMS_input_label = tk.Label(window, text='Please Input the sms data to decode', bg='red', fg='yellow',font=('Arial', 18))
@@ -18,8 +18,11 @@ SMS_input_label.pack()
 
 
 # Place a Entry - to get the SMS data
-SMS_input_entry = tk.Entry(window, show=None, font=('Arial', 14))
-SMS_input_entry.pack(fill=tk.BOTH, expand=True)
+SMS_input_entry = tk.Text(window, width=40, height=10, font=('Arial', 14))
+SMS_input_entry.pack()
+
+#scroll = tk.Scrollbar(window, command=SMS_input_entry.yview)
+#scroll.grid
 
 
 
@@ -39,7 +42,8 @@ def show_info_txt(decode_result):
 
 
 def SMS_decode():
-    sms_data = SMS_input_entry.get()
+    sms_data = SMS_input_entry.get("0.0", "end")
+    print "sms_data is "+sms_data
     if not sms_data:
         mb.showwarning(title='Warning', message='Empty sms content!!Please input sms data.')
 
@@ -65,8 +69,8 @@ Decode_button.pack()
 Code_button.pack()
 
 
-SMS_show = tk.Text(window, height=3, width=30)
-SMS_show.pack(fill=tk.BOTH, expand=True)
+SMS_show = tk.Text(window, width=65, height=10)
+SMS_show.pack()
 
 
 # 第8步，主窗口循环显示 
