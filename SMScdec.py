@@ -70,7 +70,28 @@ class RPAddr():
         self.Numdigit = BCDDecode(DataArray, Offset + 1, NumBytes)
 
 
+# Parse RP Address
+class TPAddr():
+    def __init__(self):
+        self.DigitLen = 0
+        self.Ext = 0
+        self.NumType = 0
+        self.NumPlan = 0
+        self.Numdigit = []  # string type
 
+    def Parse(self, DataArray, StartIndex):
+        self.DigitLen = DataArray[StartIndex]
+        Offset = StartIndex + 1
+        self.Ext = (DataArray[Offset] & 0x80) >> 7
+        self.NumType = (DataArray[Offset] & 0x70)>>4
+        self.NumPlan = (DataArray[Offset] & 0x0F)
+
+        if 0 == self.DigitLen % 2:
+            NumBytes = self.DigitLen / 2
+        else:
+            NumBytes = self.DigitLen /2 + 1
+
+        self.Numdigit = BCDDecode(DataArray, Offset + 1, NumBytes)
 
 class CPLayer():
     def __init__(self):
@@ -126,7 +147,7 @@ class TPLayer():
 
 
         self.TPMR = 0 # byte, Message Reference
-        self.TPDstAddr = RPAddr()
+        self.TPDstAddr = RPAddr() # Destination Addr
         self.TPPID = 0
         self.TPDCS = 0
         self.TPUserDataLen = 0
@@ -136,7 +157,29 @@ class TPLayer():
         if len(DataArray) <= StartIndex:
             print 'Input TP Layer data error, length error'
             return
-        self.TPMTI = DataArray[StartIndex] & 0x03
+        ''''
+            0   0   SMS DELIVER (in the direction SC to MS) 
+            0   0   SMS DELIVER REPORT (in the direction MS to SC)  
+            1   0   SMS STATUS REPORT (in the direction SC to MS)       
+            1   0   SMS COMMAND (in the direction MS to SC) 
+            0   1   SMS SUBMIT (in the direction MS to SC)  
+            0   1   SMS SUBMIT REPORT (in the direction SC to MS)   
+        '''
+        Offset = StartIndex
+        self.TPMTI = DataArray[Offset] & 0x03
+        # Decode Submit SMS
+        if 1 == self.TPMTI:
+            self.TPRP = (DataArray[Offset] & 0x80) >> 7
+            self.TPUDHI = (DataArray[Offset] & 0x40) >> 6
+            self.TPSRR = (DataArray[Offset] & 0x20) >> 5
+            self.TPVPF = (DataArray[Offset] & 0x18) >> 3
+            self.TPRD = (DataArray[Offset] & 0x04) >> 2
+
+        Offset = Offset + 1
+        self.TPMR= DataArray[Offset]
+
+
+        
         
 
 
