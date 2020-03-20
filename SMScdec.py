@@ -4,6 +4,145 @@
 import Tkinter as tk 
 import tkMessageBox as mb
 
+
+########################################################## SMS decode code below ################################################################
+ProtocolDiscriminator = (
+        "group call control",
+        "broadcast call control",
+        "EPS session management messages",
+        "call control; call related SS messages",
+        "GPRS Transparent Transport Protocol (GTTP)",
+        "mobility management messages",
+        "radio resources management messages",
+        "EPS mobility management messages",
+        "GPRS mobility management messages",
+        "SMS messages",
+        "GPRS session management messages",
+        "non call related SS messages",
+        "Location services specified in 3GPP TS 44.071",
+        "",
+        "extension of the PD to one octet length",
+        "used by tests procedures described in 3GPP TS 44.014"
+        )
+
+'''
+class NASPDUHeader():
+    def __init__(self):
+        self.Sec
+'''
+
+# Decode BCD stream.
+def BCDDecode(RawData, StartIndex, NumLen):
+    NumList = []
+    if len(RawData) - StartIndex < NumLen:
+        print 'Input BCD Decode data is shorter than input len.'
+    elif NumLen <= 0:
+        print 'Input BCD Decode NumLen is 0.'
+    else:
+        for i in range(NumLen):
+            HighNum = RawData[StartIndex + i] & 0X0F
+            LowNum = (RawData[StartIndex + i] & 0XF0) >> 4
+            NumList.append(HighNum)
+            if 0x0F != LowNum:
+                NumList.append(LowNum)
+    return NumList
+
+
+
+# Parse RP Address
+class RPAddr():
+    def __init__(self):
+        self.Len = 0
+        self.Ext = 0
+        self.NumType = 0
+        self.NumPlan = 0
+        self.Numdigit = []  # string type
+
+    def Parse(self, DataArray, StartIndex):
+        self.Len = DataArray[StartIndex]
+        Offset = StartIndex + 1
+        self.Ext = (DataArray[Offset] & 0x80) >> 7
+        self.NumType = (DataArray[Offset] & 0x70)>>4
+        self.NumPlan = (DataArray[Offset] & 0x0F)
+
+        NumBytes = self.Len - 1
+
+        self.Numdigit = BCDDecode(DataArray, Offset + 1, NumBytes)
+
+
+
+
+class CPLayer():
+    def __init__(self):
+        self.PD = 0
+        self.TransId = 0
+        self.MsgType = 0
+        self.CPDataLen = 0
+
+    def Parse(self, DataArray):
+        # check the length is validation
+        if len(DataArray) < 3:
+            return 0
+
+        # set each field
+        self.PD = DataArray[0] & 0x0F
+        self.TransId = (DataArray[0] & 0xF0) >> 4
+        self.MsgType = DataArray[1]
+        self.CPDataLen = DataArray[2]
+        return 3;
+
+
+class RPLayer():
+    def __init__(self):
+        self.MsgType = 0
+        self.MsgRef = 0
+        self.RPOriAddr = RPAddr()
+        self.RPDstAddr = RPAddr()
+        self.UserDataLen = 0
+
+
+    def Parse(self, DataArray, StartIndex):
+        self.MsgType = DataArray[StartIndex]
+        self.MsfRef = DataArray[StartIndex + 1]
+        self.RPOriAddr.Parse(DataArray, StartIndex + 2)
+        Offset = StartIndex + 2 + self.RPOriAddr.Len + 1
+        self.RPDstAddr.Parse(DataArray, Offset)
+        Offset = Offset + self.RPDstAddr.Len + 1
+
+        self.UserDataLen = DataArray[Offset]
+
+
+
+
+class TPLayer():
+    def __init__(self):
+        #self.TPFlags = 0
+        self.TPRP = 0 # bit7 Reply-Path
+        self.TPUDHI = 0 #bit6 User Data Header Indicator, indicating whether TP-UD field contains a Header
+        self.TPSRR = 0  # bit5, Status Report Request
+        self.TPVPF = 0  # bit4-3 Validity Period Format. The SMS valid period whether is present.
+        self.TPRD = 0  # bit2  Reject Duplicates. Whether the SC accept the duplicates SMS.
+        self.TPMTI = 0 #  bit1-0 Message Type Indicator.
+
+
+        self.TPMR = 0 # byte, Message Reference
+        self.TPDstAddr = RPAddr()
+        self.TPPID = 0
+        self.TPDCS = 0
+        self.TPUserDataLen = 0
+
+
+    def Parse(self, DataArray, StartIndex):
+        if len(DataArray) <= StartIndex:
+            print 'Input TP Layer data error, length error'
+            return
+        self.TPMTI = DataArray[StartIndex] & 0x03
+        
+
+
+
+########################################################## GUI code below ################################################################
+
 # 第1步，实例化object，建立窗口window 
 window = tk.Tk() 
 
@@ -12,20 +151,13 @@ window.title('SMS Deocder')
 # 第3步，设定窗口的大小(长 * 宽) 
 window.geometry('500x560') # 这里的乘是小x 
 
-# SMS input label
-#SMS_input_label = tk.Label(window, text='Please Input the sms data to decode', bg='red', fg='yellow',font=('Arial', 18))
-#SMS_input_label.pack()
-
-
+# Input Frame
 sms_input_frame = tk.LabelFrame(window, text="输入编码的短信内容", width=65)
+
 # Place a Entry - to get the SMS data
 SMS_input_entry = tk.Text(sms_input_frame, width=35, height=8, font=('Arial', 14))
 SMS_input_entry.pack()
 sms_input_frame.pack(padx=10,pady=10)
-
-#scroll = tk.Scrollbar(window, command=SMS_input_entry.yview)
-#scroll.grid
-
 
 
 # transfer dec to hex
@@ -42,8 +174,9 @@ def ch_to_hex(ch):
 
 # Print hex stream.
 def print_hex(list_num):
+    print "Hex stream :\n"
     hex_num = [hex(int(i)) for i in list_num]
-    print "Hex stream ".join(hex_num)
+    print " ".join(hex_num)
 
 
 def show_info_txt(decode_result):
